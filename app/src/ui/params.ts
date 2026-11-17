@@ -8,7 +8,7 @@
  */
 
 import { el, select } from './dom';
-import { openPopover } from './mode-menu';
+import { openPopover, popoverOpenFor, closeActivePopover } from './mode-menu';
 import type { Store } from '../state/store';
 import type { ParamDef } from '../model/types';
 import { familyOfLine, labelFor, model, modeByIndex, modeColor } from '../model/model';
@@ -172,6 +172,7 @@ function paramField(store: Store, line: number, p: ParamDef, famColor: string | 
     const btn = el('button', {
       type: 'button', id, class: 'field-menu-btn', 'aria-haspopup': 'listbox',
       onclick: () => {
+        if (popoverOpenFor(btn)) { closeActivePopover(); return; } // second click on the button closes it
         const grid = radioGrid({
           id: `${id}-grid`, options: opts, value: store.get().config.lines[line]!.bytes[p.index] ?? 0,
           ariaLabel: p.label, cols: 4, tint,

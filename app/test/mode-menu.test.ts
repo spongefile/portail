@@ -64,12 +64,25 @@ describe('mode menu popover', () => {
     expect(document.querySelector('.mode-menu')).toBeNull(); // closed
   });
 
-  it('Escape closes without committing; a second open replaces the first, never stacks', () => {
+  it('Escape closes without committing; re-clicking the same pill toggles it shut; a different pill replaces, never stacks', () => {
     const { tag, picks } = open('cv', 0);
-    openModeMenu(tag, 'cv', 0, () => picks.push(-1));
     expect(document.querySelectorAll('.mode-menu').length).toBe(1);
+    // Escape closes, nothing committed.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(document.querySelector('.mode-menu')).toBeNull();
+    expect(picks.length).toBe(0);
+    // Re-opening then opening AGAIN on the same pill toggles the picker shut (not reopen).
+    openModeMenu(tag, 'cv', 0, () => picks.push(-1));
+    expect(document.querySelectorAll('.mode-menu').length).toBe(1);
+    openModeMenu(tag, 'cv', 0, () => picks.push(-1));
+    expect(document.querySelector('.mode-menu')).toBeNull();
+    // A different pill replaces rather than stacking — never two at once.
+    const tag2 = document.createElement('span');
+    tag2.className = 'mode-tag';
+    document.body.appendChild(tag2);
+    openModeMenu(tag, 'cv', 0, () => {});
+    openModeMenu(tag2, 'cv', 0, () => {});
+    expect(document.querySelectorAll('.mode-menu').length).toBe(1);
     expect(picks.length).toBe(0);
   });
 

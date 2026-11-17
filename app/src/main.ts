@@ -218,7 +218,17 @@ const syncActions: SyncActions = {
 
 const presetActions: PresetActions = {
   async loadSlot(slot: number) {
-    if (!(await confirmLoad(slot, store.syncStatus().kind === 'modified'))) return;
+    // Warn only when the editor actually holds a patch (any output in use, or a mod-matrix row) AND it
+    // isn't provably in sync with the module. A fresh/empty editor reads as 'modified' against the
+    // simulator's own config but has nothing to lose, so it gets the plain dialog, not the scary one.
+    // 'in-sync'/'device-ahead' are always safe to load over.
+    const cfg = store.get().config;
+    const hasContent =
+      cfg.lines.slice(0, 16).some((l) => l.mode !== 0) ||
+      cfg.modMatrix.some((m) => m.statusHigh !== 0 || m.targetParam !== 0);
+    const k = store.syncStatus().kind;
+    const mayLoseEdits = hasContent && k !== 'in-sync' && k !== 'device-ahead';
+    if (!(await confirmLoad(slot, mayLoseEdits))) return;
     try {
       await device.loadPreset(slot);
       const res = await device.readConfig();
@@ -279,9 +289,28 @@ const scheduleConnbar = scheduler(() => {
 const scheduleMonitor = scheduler(() => {
   const mount = document.getElementById('monitor-mount');
   if (mount) { clear(mount); mount.appendChild(renderMonitor(monitor, scheduleMonitor)); }
-  const led = document.getElementById('activity-led');
-  if (led) led.classList.toggle('lit', monitor.isLit(performance.now()));
+  const lit = monitor.isLit(performance.now());
+  // Both the (hidden) in-panel LED and the one on the MIDI tab — the tab dot is what stays visible
+  // when the Globals tab is showing.
+  for (const id of ['activity-led', 'tab-activity-led']) {
+    document.getElementById(id)?.classList.toggle('lit', lit);
+  }
 });
+
+/** Switch the sidebar's MIDI-activity / Globals tabbed card. DOM is the state — the pane divs keep
+ *  their hidden flag and the tabs their active class across content re-mounts. */
+function switchSideTab(key: string): void {
+  const root = document.getElementById('side-tabs');
+  if (!root) return;
+  for (const t of root.querySelectorAll<HTMLElement>('.tab')) {
+    const on = t.dataset['tab'] === key;
+    t.classList.toggle('is-active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  }
+  for (const p of root.querySelectorAll<HTMLElement>('.tab-pane')) {
+    p.hidden = p.dataset['tab'] !== key;
+  }
+}
 
 // Preserve the focused control and scroll position across a re-mount (mountInto does clear+append,
 // which otherwise drops focus, closes an open <select>, and can jump scroll on every value edit).
@@ -444,12 +473,26 @@ function buildShell(root: HTMLElement): void {
       el('div', { class: 'main-col' },
         el('div', { id: 'rack-mount' }),
         el('div', { id: 'modmatrix-mount' }),
+        el('div', { id: 'files-mount' }),
       ),
       el('div', { class: 'side-col' },
         el('div', { id: 'presets-mount' }),
-        el('div', { id: 'monitor-mount' }),
-        el('div', { id: 'globals-mount' }),
-        el('div', { id: 'files-mount' }),
+        // MIDI activity + Globals share one tabbed card. The live activity dot rides on the MIDI tab
+        // so incoming MIDI is noticeable even when Globals is showing.
+        el('section', { class: 'panel side-tabs', id: 'side-tabs' },
+          el('div', { class: 'tabbar', role: 'tablist' },
+            el('button', {
+              type: 'button', class: 'tab is-active', role: 'tab', 'aria-selected': 'true',
+              'data-tab': 'midi', onclick: () => switchSideTab('midi'),
+            }, 'MIDI activity', el('span', { class: 'activity-led', id: 'tab-activity-led' })),
+            el('button', {
+              type: 'button', class: 'tab', role: 'tab', 'aria-selected': 'false',
+              'data-tab': 'globals', onclick: () => switchSideTab('globals'),
+            }, 'Globals'),
+          ),
+          el('div', { class: 'tab-pane', id: 'monitor-mount', 'data-tab': 'midi' }),
+          el('div', { class: 'tab-pane', id: 'globals-mount', 'data-tab': 'globals', hidden: true }),
+        ),
       ),
     ),
   );

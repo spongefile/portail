@@ -115,15 +115,16 @@ a { color: var(--accent); }
   flex: 1 1 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 1px;
-  background: var(--border);
+  /* No seam between the columns: the panels are independent rounded cards now, so their padding is
+     the separation. A 1px border-coloured gap here read as a section divider fighting the cards. */
   align-items: stretch;
 }
 .workspace > * { background: var(--bg); min-width: 0; }
 
 .main-col { padding: .9rem; display: flex; flex-direction: column; gap: .9rem; overflow: auto; }
-.side-col { display: flex; flex-direction: column; gap: 1px; background: var(--border); overflow: auto; }
-.side-col > .panel { border-radius: 0; border-left: 0; border-right: 0; }
+/* The sidebar matches the main column: same top padding (so the first panel aligns with the rack)
+   and the panels are rounded cards, not a flush square rail. */
+.side-col { padding: .9rem; display: flex; flex-direction: column; gap: .9rem; overflow: auto; }
 
 @media (max-width: 1000px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
@@ -144,6 +145,26 @@ a { color: var(--accent); }
 .panel-head .spacer { flex: 1 1 auto; }
 .panel-body { padding: .75rem; }
 .panel-body.tight { padding: .4rem; }
+
+/* Tabbed sidebar card (MIDI activity / Globals). The tabbar is the card header; each pane wraps an
+   existing panel, flattened so it doesn't read as a nested card. */
+.side-tabs { overflow: hidden; }
+.side-tabs > .tabbar { display: flex; gap: .25rem; padding: .4rem .5rem 0; border-bottom: 1px solid var(--border); }
+.side-tabs .tab {
+  display: inline-flex; align-items: center; gap: .4rem; font: inherit; font-size: .82rem; font-weight: 650;
+  color: var(--text-dim); background: none; border: 0; border-bottom: 2px solid transparent;
+  padding: .35rem .5rem; margin-bottom: -1px; cursor: pointer; border-radius: 6px 6px 0 0;
+}
+.side-tabs .tab:hover { background: var(--bg-hover); color: var(--text); }
+.side-tabs .tab.is-active { color: var(--text); border-bottom-color: var(--accent); }
+.side-tabs .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.side-tabs .tab-pane > .panel { border: 0; border-radius: 0; background: transparent; }
+/* Globals' head is title-only — the tab already names it. MIDI keeps its actions but loses its title
+   and in-head dot (the live dot rides on the tab instead). */
+.side-tabs #globals-mount > .panel > .panel-head { display: none; }
+.side-tabs #monitor-mount > .panel > .panel-head { border-bottom: 0; }
+.side-tabs #monitor-mount > .panel > .panel-head h2,
+.side-tabs #monitor-mount > .panel > .panel-head .activity-led { display: none; }
 
 /* ------------------------------------------------------------------ controls */
 
@@ -310,6 +331,9 @@ input.control[type="range"] { padding: 0; background: transparent; border: 0; }
 .segmented.is-segment .seg-item:first-child { border-radius: 5px 0 0 5px; }
 .segmented.is-segment .seg-item:last-child { border-radius: 0 5px 5px 0; }
 .segmented.is-chip, .segmented.is-wrap { flex-wrap: wrap; gap: 4px; }
+/* A wrapped segment already gives each item its own border + gap, so the is-segment outer frame is a
+   redundant double border — drop it (and its clip) when wrapped. */
+.segmented.is-segment.is-wrap { border: 0; border-radius: 0; overflow: visible; }
 .segmented.is-wrap .seg-item { border: 1px solid var(--border); border-radius: 6px; flex: 1 1 auto; }
 .segmented.is-chip .seg-item { border: 1px solid var(--border); border-radius: 6px; }
 .seg-item { flex: 1 1 auto; min-width: 34px; min-height: 30px; padding: 0 .5rem; display: grid; place-items: center; background: var(--bg-panel); color: var(--text-dim); font: inherit; font-size: .72rem; line-height: 1; cursor: pointer; white-space: nowrap; } /* min-height, not stretch: a wrapped line would collapse to text height (13.5px) */
@@ -346,13 +370,19 @@ input.control[type="range"] { padding: 0; background: transparent; border: 0; }
 }
 
 /* Toggle — a two-state switch. */
-.toggle-switch { display: inline-flex; align-items: center; gap: .5rem; height: 30px; padding: 0 .3rem 0 0; border: 0; background: none; font: inherit; cursor: pointer; color: var(--text-dim); }
+.toggle-switch { display: inline-flex; align-items: center; gap: .45rem; height: 30px; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; color: var(--text-dim); }
 .toggle-track { position: relative; width: 38px; height: 20px; border-radius: 10px; background: var(--bg-sunken); border: 1px solid var(--border); flex: 0 0 auto; transition: background .12s; }
 .toggle-knob { position: absolute; top: 1px; left: 1px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-faint); transition: transform .12s, background .12s; }
 .toggle-switch.is-on .toggle-track { background: color-mix(in srgb, var(--fill, var(--accent)) 30%, var(--bg-sunken)); border-color: var(--fill, var(--accent)); }
 .toggle-switch.is-on .toggle-knob { transform: translateX(18px); background: var(--fill, var(--accent)); }
 .toggle-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
-.toggle-label { font-size: .74rem; font-weight: 650; }
+/* Both sides always labelled; the active side is emphasised (on = fill, off = strong text), the
+   other dimmed — the knob and the emphasis agree on which is selected. */
+.toggle-side { font-size: .74rem; font-weight: 650; color: var(--text-faint); transition: color .12s; }
+.toggle-switch .toggle-side-off { color: var(--text); }
+.toggle-switch .toggle-side-on { color: var(--text-faint); }
+.toggle-switch.is-on .toggle-side-off { color: var(--text-faint); }
+.toggle-switch.is-on .toggle-side-on { color: var(--fill, var(--accent)); }
 
 /* DESIGN board 6 — note picker: a trigger + piano popover. Piano geometry is provisional (headless). */
 .note-picker { position: relative; }
@@ -419,7 +449,12 @@ select.pfield-control { padding-top: 0; padding-bottom: 0; }
    none. The pointer-events list must mirror the opacity list exactly (touch reaches the focus route,
    not only the tap route). The hint is a direct child of .pfield, so hovering it still satisfies
    :hover and it stays up rather than flickering. */
-.pfield:hover > .pfield-hint,
+/* Hover reveals help only from the field's TITLE row (.pfield-head), never from the controls
+   themselves (sliders, selection buttons) — hovering those used to pop help over what you're using.
+   The hint stays up while you hover it too, so you can read/click into it. Focus + tap routes keep
+   working for keyboard and touch. */
+.pfield-head:hover ~ .pfield-hint,
+.pfield-hint:hover,
 .pfield:focus-within > .pfield-hint,
 .pfield.hint-shown > .pfield-hint { opacity: 1; pointer-events: auto; cursor: pointer; }
 .pfield.hint-suppressed > .pfield-hint { opacity: 0; pointer-events: none; }
@@ -486,14 +521,17 @@ select.pfield-control { padding-top: 0; padding-bottom: 0; }
 /* ------------------------------------------------------------------ presets */
 
 .preset-row {
-  display: grid; grid-template-columns: 2rem 1fr auto; gap: .45rem; align-items: center;
+  /* num + name on the first line; the action buttons span a full second line so the directional
+     labels ("Load → editor" / "Save → module") fit without squeezing the name field. */
+  display: grid; grid-template-columns: 2rem 1fr; gap: .35rem .45rem; align-items: center;
   padding: .3rem; border-bottom: 1px solid var(--border);
 }
 .preset-row:last-child { border-bottom: 0; }
 .preset-row.is-current { background: var(--info-bg); }
 .preset-num { font-family: var(--mono); font-size: .75rem; color: var(--text-faint); text-align: center; }
 .preset-backup { font-size: .66rem; color: var(--text-faint); }
-.preset-actions { display: flex; gap: .25rem; }
+.preset-actions { grid-column: 1 / -1; display: flex; gap: .25rem; }
+.preset-actions .btn-sm:first-child, .preset-actions .btn-sm:nth-child(2) { flex: 1 1 auto; }
 
 /* ------------------------------------------------------------------- toasts */
 
@@ -656,11 +694,13 @@ footer.colophon {
 /* --- OutputJack: a circle (physical) --- */
 .output-jack {
   position: relative;
-  display: flex; align-items: center; gap: .55rem; text-align: left;
+  /* Left inset + ring-to-text gap give the jack and its label air, and land them on consistent
+     vertical axes down the column (Tina) rather than crowded against the card edge. */
+  display: flex; align-items: center; gap: .95rem; text-align: left;
   width: 100%; font: inherit; cursor: pointer;
   background: var(--bg-panel); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px;
-  padding: .4rem .5rem; min-height: 4.4rem;
+  padding: .4rem .5rem .4rem 1.05rem; min-height: 4.4rem;
 }
 /* Reserve the decorative glyph's box (30px at right .3rem ≈ 34.8px from the edge) so the mode name,
    summary or FX row can't run under the ◀. .is-tab sets its own padding-right. (Signalflow renders
@@ -672,13 +712,19 @@ footer.colophon {
 .jack-ring {
   position: relative; flex: 0 0 auto;
   width: 30px; height: 30px; border-radius: 50%;
-  border: 2.5px solid var(--jack, var(--border-strong));
+  border: 0.5px solid var(--jack, var(--border-strong));
   display: grid; place-items: center;
   color: var(--jack, var(--text-faint));
 }
+/* A real 3.5mm jack: the coloured ring is the collar, and inside sits a dark recessed barrel — a
+   near-black hole with a top-lit radial + inset shadow for depth, ringed by a thin dimmed-collar edge
+   so the family colour still frames the hole. Fills most of the ring (was a small 8px dot). */
 .jack-socket {
-  position: absolute; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--bg-sunken); border: 1px solid var(--jack, var(--border-strong));
+  position: absolute; width: 19px; height: 19px; border-radius: 50%;
+  /* Flat inner ring — no fill, no fake depth. The centre shows the card behind it; a hairline in the
+     dimmed family colour defines the socket without skeuomorphic shading. */
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--jack, var(--border-strong)) 35%, transparent);
 }
 .jack-mode { display: inline-flex; align-items: center; gap: .3rem; }
 .jmode-icon { display: inline-grid; place-items: center; color: var(--jack, var(--text-faint)); flex: 0 0 auto; }
@@ -853,6 +899,8 @@ dialog.conflict-dialog { max-width: 560px; } /* match dialog.confirm specificity
 }
 
 /* --- Mode tag: the colored family+mode label IS the mode editor (user feedback) --- */
+/* Mode capsule + its ? help, as one inline group so help stays beside the mode it explains. */
+.mode-tag-row { display: inline-flex; align-items: center; gap: .15rem; }
 .mode-tag {
   display: inline-flex; align-items: center; gap: .3rem;
   color: var(--fam, var(--text-faint));
@@ -1067,7 +1115,7 @@ select.control {
 .mode-tag { position: relative; }
 .mode-menu {
   position: fixed; z-index: 120; /* body-portaled: above the rack and the toasts' 100 */
-  min-width: 13rem; max-height: min(60vh, 26rem); overflow-y: auto;
+  min-width: 13rem; max-height: calc(100vh - 16px); overflow-y: auto; /* grow to fit; scroll only past the viewport */
   background: var(--bg-panel); border: 1px solid var(--border-strong); border-radius: 8px;
   box-shadow: var(--shadow); padding: .3rem;
 }

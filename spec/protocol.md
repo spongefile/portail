@@ -1197,10 +1197,10 @@ corrupted saved preset or a read of non-secret device RAM — both recoverable b
 re-save, or factory reset. Exploiting any of them requires the ability to send SysEx to the module in
 the first place (physical/USB access or a malicious file); there is no network exposure.
 
-> **Responsible disclosure.** These defects were reported privately to eowave on 2026-08-26, before
-> this repository was made public. **As of 2026-11-17 there has been no response in 83 days.** The
-> full technical analysis — addresses, mechanism, and reproduction — is deliberately **withheld from
-> this public repository** and remains withheld; it is retained privately by the maintainer. Please see
+> **Responsible disclosure.** These defects were reported privately to eowave (2026-08-26), before
+> this repository was made public. The full technical analysis — addresses, mechanism, and
+> reproduction — is deliberately **withheld from this public repository** until eowave has had the
+> opportunity to address them, and is retained privately by the maintainer. Please see
 > [`SECURITY.md`](../SECURITY.md) and contact the maintainer rather than reverse-engineering the
 > specifics.
 

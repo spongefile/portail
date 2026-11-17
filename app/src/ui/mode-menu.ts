@@ -23,6 +23,13 @@ const ADJACENT: Record<string, string> = { cc_rec: 'cc' };
 // position) so it survives rack re-renders (a toast expiring mid-pick used to delete it) and
 // escapes the OFF card's opacity:.6 (a child menu used to inherit the fade and render see-through).
 let closeCurrent: (() => void) | null = null;
+let currentAnchor: HTMLElement | null = null;
+
+/** True when a popover opened from `anchor` is currently showing — openers use this to TOGGLE: a
+ *  second click on the same pill closes the picker instead of reopening it. */
+export function popoverOpenFor(anchor: HTMLElement): boolean { return currentAnchor === anchor; }
+/** Close whatever popover is currently open. */
+export function closeActivePopover(): void { closeCurrent?.(); }
 
 export interface PopoverHandle { root: HTMLElement; close: () => void; }
 
@@ -38,29 +45,42 @@ export function openPopover(anchor: HTMLElement, content: HTMLElement, opts: { a
   const close = () => {
     root.remove();
     closeCurrent = null;
+    currentAnchor = null;
     document.removeEventListener('pointerdown', onOutside, true);
     document.removeEventListener('keydown', onKey, true);
-    document.removeEventListener('scroll', onScroll, true);
+    document.removeEventListener('scroll', onReflow, true);
+    window.removeEventListener('resize', onReflow);
   };
-  const onScroll = () => close(); // fixed-position popover would detach from its anchor
+  // A click OUTSIDE the picker closes it. A click ON the anchor (the pill) is excluded here so the
+  // pointerdown doesn't pre-empt the opener's click, which toggles the picker shut itself.
   const onOutside = (e: Event) => { if (!root.contains(e.target as Node) && e.target !== anchor && !anchor.contains(e.target as Node)) close(); };
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
     opts.onKey?.(e, close);
   };
+  // Position under the anchor, clamped into the viewport (flip up off the bottom, in off the right).
+  function place(): void {
+    const r = anchor.getBoundingClientRect();
+    const mw = root.offsetWidth, mh = root.offsetHeight;
+    let top = r.bottom + 4;
+    let left = Math.max(8, r.left);
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, window.innerHeight - mh - 8);
+    if (left + mw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - mw - 8);
+    root.style.top = `${top}px`;
+    root.style.left = `${left}px`;
+  }
+  // Stay OPEN on scroll/resize — just re-track the anchor (a fixed popover would otherwise drift off).
+  // Only an outside click, an anchor click, or Escape closes it.
+  function onReflow(): void { place(); }
 
-  const r = anchor.getBoundingClientRect();
-  root.style.left = `${Math.max(8, r.left)}px`;
-  root.style.top = `${r.bottom + 4}px`;
   document.body.appendChild(root);
   closeCurrent = close;
-  // Clamp into the viewport once measurable (flip up against the bottom edge / left off the right).
-  const mw = root.offsetWidth, mh = root.offsetHeight;
-  if (r.bottom + 4 + mh > window.innerHeight - 8) root.style.top = `${Math.max(8, window.innerHeight - mh - 8)}px`;
-  if (r.left + mw > window.innerWidth - 8) root.style.left = `${Math.max(8, window.innerWidth - mw - 8)}px`;
+  currentAnchor = anchor;
+  place();
   document.addEventListener('pointerdown', onOutside, true);
   document.addEventListener('keydown', onKey, true);
-  document.addEventListener('scroll', onScroll, true);
+  document.addEventListener('scroll', onReflow, true);
+  window.addEventListener('resize', onReflow);
   return { root, close };
 }
 
@@ -74,6 +94,8 @@ export interface MenuGroup {
 
 /** The shared icon+label popover (mode menu, FX insert, FX editor). Body-portaled; one at a time. */
 export function openIconMenu(anchor: HTMLElement, ariaLabel: string, groups: MenuGroup[], current: number | null, onPick: (v: number) => void): void {
+  // Clicking the pill again while its picker is open closes it (toggle), rather than reopening.
+  if (popoverOpenFor(anchor)) { closeActivePopover(); return; }
   const inner = el('div');
   const arrowKeys = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;

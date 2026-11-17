@@ -10,14 +10,9 @@ defects in the Portail's **firmware** (not in this software). In line with
 responsible disclosure, they were **reported privately to eowave on 2026-08-26,
 before this repository was made public.**
 
-**Status as of 2026-11-17: no response has been received from eowave in the 83 days
-since that report.** This repository is being published now because the software is
-useful to other Portail owners and the standard coordinated-disclosure window has
-effectively elapsed. The withholding below still stands, and will continue to stand
-regardless of whether eowave replies — it is not a deadline that expires.
-
 The full technical analysis — addresses, mechanism, and reproduction steps — is
-**deliberately withheld from this public repository**, and remains withheld. It is held privately by the maintainer and will be
+**deliberately withheld from this public repository** until eowave has had the
+opportunity to address them. It is held privately by the maintainer and will be
 shared with eowave on request.
 
 What is stated publicly here is only what this software needs in order to be safe:

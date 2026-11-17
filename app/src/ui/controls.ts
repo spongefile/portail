@@ -335,8 +335,11 @@ export function toggleControl(o: ToggleOpts): HTMLElement {
     onclick: flip,
     onkeydown: (e: Event) => { const k = (e as KeyboardEvent).key; if (k === ' ' || k === 'Enter') { e.preventDefault(); flip(); } },
   },
+    // Both option labels flank the track at all times (active one emphasised), so the switch says
+    // what each side DOES — no guessing what a tap will change it to.
+    el('span', { class: 'toggle-side toggle-side-off' }, o.options[0]?.label ?? 'off'),
     el('span', { class: 'toggle-track' }, el('span', { class: 'toggle-knob' })),
-    el('span', { class: 'toggle-label' }, o.options[on ? 1 : 0]?.label ?? ''),
+    el('span', { class: 'toggle-side toggle-side-on' }, o.options[1]?.label ?? 'on'),
   );
   return sw;
 }

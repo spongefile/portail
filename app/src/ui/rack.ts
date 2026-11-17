@@ -139,8 +139,9 @@ function tabCard(store: Store, opts: InspectorOptions, line: number, changed: Se
     ...jackOptions(store, line, changed),
     selected: true,
     asTab: true,
-    modeControl: renderModeTag(store, line),
-    trailing: el('span', { class: 'jack-controls' }, help, disclosure),
+    // Help sits ON the mode row, right beside the mode it explains — not adrift at the card's edge.
+    modeControl: el('span', { class: 'mode-tag-row' }, renderModeTag(store, line), help),
+    trailing: el('span', { class: 'jack-controls' }, disclosure),
   });
 }
 

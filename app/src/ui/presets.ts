@@ -66,15 +66,17 @@ export function renderPresets(
       el(
         'div',
         { class: 'preset-actions' },
-        button('Load', () => void actions.loadSlot(slot), {
+        button('Load → editor', () => void actions.loadSlot(slot), {
           class: 'btn-sm',
           disabled: !connected,
-          title: connected ? `Tell the module to load slot ${slot + 1}` : 'Needs a connected module',
+          title: connected
+            ? `Replace what you're editing with slot ${slot + 1} from the module`
+            : 'Needs a connected module',
         }),
-        button('Save', () => void actions.saveSlot(slot), {
+        button('Save → module', () => void actions.saveSlot(slot), {
           class: 'btn-sm',
           disabled: !connected,
-          title: connected ? `Overwrite slot ${slot + 1} on the module` : 'Needs a connected module',
+          title: connected ? `Write the editor into slot ${slot + 1} on the module` : 'Needs a connected module',
         }),
         button('↓', () => {
           if (!backup) return;

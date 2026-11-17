@@ -10,6 +10,12 @@
 
 **▶ Use it now: https://spongefile.github.io/portail-editor/** — no install, runs in the browser.
 
+![The Portail Editor: the 16-output rack overview, an output's signal flow and its parameter
+editors](.github/screenshot.jpg)
+
+*Editing CV 1 against the built-in simulator — every control is drawn from the parameter's real
+domain, so a note range is a keyboard strip, not two number boxes.*
+
 Unofficial, AI-generated rewrite of the two weakest parts of the eowave Portail experience:
 
 1. **`app/`** — a better web editor (replacement for https://www.eowave.app/portail/)

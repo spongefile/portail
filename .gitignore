@@ -1,0 +1,36 @@
+# --- Build output & local cruft --------------------------------------------
+node_modules/
+dist/
+.vite/
+coverage/
+.DS_Store
+*.log
+
+# --- Vendor assets: analysed locally, never redistributed -------------------
+# Everything below is eowave's copyrighted material — firmware images, the
+# official manual, and the scraped original editor. Analysing them locally for
+# interoperability is lawful; republishing them from this public repo is not.
+# They stay on disk and work normally; git simply never records them.
+# Do not remove these rules.
+research/firmware/
+# legacy top-level dumps from early analysis (superseded by research/firmware/)
+research/firmware-*
+research/original-editor/
+research/*.pdf
+research/*.uf2
+research/*.bin
+research/portail-manual.*
+research/portail_manual_v1.*
+research/eowave-portail-page.html
+research/modwiggler-raw.html
+
+# --- Private security findings: coordinated disclosure, never publish -------
+research/security-findings.md
+
+# Safety net: never publish security/disclosure notes added under research/ later
+research/*security*
+research/*disclosure*
+research/*findings*
+
+# Seeded design-canvas build artifact (large; regenerate from mockup/*.dc.html + canvas.json)
+mockup/portail-editor-mockups.html

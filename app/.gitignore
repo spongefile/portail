@@ -1,0 +1,5 @@
+node_modules/
+dist/
+src/model/model.json
+*.local
+.DS_Store

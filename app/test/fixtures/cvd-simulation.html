@@ -1,0 +1,192 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Colour-vision simulation — Portail palette</title>
+
+<!--
+  Visual check for colour-vision deficiency (deuteranopia / protanopia).
+
+  WHY: the palette's separation numbers are computed from hex values, which cannot show whether
+  two colours are actually telling apart on screen. This renders the real scenarios at real sizes
+  and applies a per-column feColorMatrix simulation.
+
+  HOW TO USE: `npm run dev`, then open /test/fixtures/cvd-simulation.html
+  (it must be served, not opened from the filesystem — it links the live stylesheet).
+
+  NO HARD-CODED HEXES. Every colour is read back from app/src/styles.css through a probe element,
+  so this file cannot drift from the tokens. That drift is exactly how a stale claim survived:
+  a caption described `--fx` as violet long after it became `var(--accent)`.
+
+  THE RULE THIS TESTS (design board 1): ΔE76 ≥ 20 normal, ≥ 15 under CVD, applied ONLY to pairs
+  that co-occur AND where colour is the sole carrier. A pair that fails here is only a defect if
+  it also fails both of those. Families always carry an icon and the mode name, so they pass the
+  rule even though — as this page shows — they collapse to about three groups under CVD.
+-->
+
+<link rel="stylesheet" href="/src/styles.css">
+<style>
+  body { background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, sans-serif;
+         margin: 0; padding: 16px; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .col { flex: 0 0 250px; }
+  .colcap { font: 600 11px system-ui; letter-spacing: .08em; text-transform: uppercase;
+            color: var(--text-dim); margin-bottom: 8px; }
+  h2 { font: 700 10.5px system-ui; letter-spacing: .07em; color: var(--text-faint);
+       margin: 14px 0 5px; text-transform: uppercase; }
+  .card { background: var(--bg-panel); border: 1.5px solid var(--c); border-radius: 6px;
+          padding: 7px 9px; margin-bottom: 5px; display: flex; gap: 8px; align-items: center; }
+  .ring { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--c); flex: 0 0 auto; }
+  .nm   { font: 700 13px system-ui; color: var(--c); }
+  .dot  { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .ringdot { width: 9px; height: 9px; border-radius: 50%; display: inline-block;
+             border: 2px solid var(--d); box-sizing: border-box; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-panel);
+          border-radius: 12px; padding: 3px 10px; font-size: 12px; margin: 0 6px 4px 0; }
+  .chip { display: inline-flex; padding: 3px 10px; border-radius: 13px; border: 1px solid var(--c);
+          color: var(--c); font-size: 11px; background: var(--bg-hover); }
+  .small { font-size: 11px; color: var(--text-dim); }
+  table { border-collapse: collapse; font: 11px/1.4 ui-monospace, monospace; margin-top: 4px; }
+  td, th { padding: 2px 8px 2px 0; text-align: left; white-space: nowrap; }
+  th { color: var(--text-faint); font-weight: 600; }
+  .fail { color: var(--danger); font-weight: 700; }
+  .pass { color: var(--ok); }
+  .note { max-width: 780px; font-size: 12px; color: var(--text-dim); }
+  svg.f { position: absolute; width: 0; height: 0; }
+</style>
+
+<svg class="f" aria-hidden="true">
+  <!-- Viénot–Brettel–Mollon (1999) dichromat projection: RGB→LMS, collapse the missing cone,
+       LMS→RGB, pre-multiplied into one 3×3.
+
+       color-interpolation-filters MUST be linearRGB (the SVG default, stated here so nobody
+       "tidies" it to sRGB) because the LMS transform is defined on linear light, and the ΔE
+       table below applies the identical matrices in linear RGB. Picture and numbers therefore
+       describe the same model.
+
+       The widely-copied Vischeck/"daltonize" matrices were tried here first and are much too
+       generous — they scored the accent-vs-modulation pair at ΔE 42 where this model gives 9,
+       and the render visibly disagreed with them. Do not swap these back. -->
+  <filter id="deut" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="
+     0.29275  0.70725  0        0 0
+     0.29275  0.70725  0        0 0
+    -0.02234  0.02234  1        0 0
+     0        0        0        1 0"/></filter>
+  <filter id="prot" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="
+     0.11238  0.88761  0        0 0
+     0.11238  0.88762  0        0 0
+     0.00401 -0.00401  1        0 0
+     0        0        0        1 0"/></filter>
+</svg>
+
+<script>
+// ---- read every colour back from the real stylesheet, fully resolved -----------------------
+const probe = document.createElement('span');
+probe.style.display = 'none';
+document.body.appendChild(probe);
+// A missing custom property makes the `color` declaration invalid at computed-value time, so it
+// INHERITS rather than returning empty — which silently reads as --text and looks like a real
+// colour. Probing twice with two different fallbacks is the only reliable existence test.
+function token(name) {
+  probe.style.color = ''; probe.style.color = `var(${name}, #010203)`;
+  const a = getComputedStyle(probe).color;
+  probe.style.color = ''; probe.style.color = `var(${name}, #040506)`;
+  const b = getComputedStyle(probe).color;
+  return a === b ? a : null;                        // differs => fallback used => token absent
+}
+const T = {};
+for (const n of ['--fam-pitch','--fam-expression','--fam-modulation','--fam-gate','--fam-clock',
+                 '--ok','--warn','--pending','--danger','--accent','--fx','--cv','--gate',
+                 '--text-dim','--bg-panel']) {
+  const v = token(n);
+  if (v) T[n] = v;
+}
+const has = n => n in T;
+const c   = n => T[n] ?? 'magenta';   // magenta = token missing, so it screams rather than hides
+
+// ---- the scenarios: only pairs that actually co-occur in the UI ----------------------------
+const scenarios = () => `
+  <h2>A · status dots — connected vs pending</h2>
+  <div>
+    <span class="pill"><i class="dot" style="background:${c('--ok')}"></i>connected</span>
+    <span class="pill"><i class="dot" style="background:${c(has('--pending')?'--pending':'--warn')}"></i>pending</span>
+  </div>
+  <div class="small">Colour-alone until the adjacent status text is read.</div>
+
+  <h2>B · unsent marker on a gate card</h2>
+  <div class="card" style="--c:${c('--fam-gate')}">
+    <i class="ring"></i><span class="nm">GATE 1</span>
+    <i class="ringdot" style="--d:${c(has('--pending')?'--pending':'--warn')}"></i>
+    <span class="small">unsent</span>
+  </div>
+  <div class="small">Board 1b gives this a ring rather than a disc — shape as the carrier.</div>
+
+  <h2>C · FX chip inside a modulation band</h2>
+  <div class="card" style="--c:${c('--fam-modulation')}">
+    <i class="ring"></i><span class="nm">CV 4&nbsp; LFO</span>
+    <span class="chip" style="--c:${c('--fx')}">FX2 Scale</span>
+  </div>
+  <div class="small">The one view where accent and modulation meet. Chip carries a text label.</div>
+
+  <h2>D · the five families</h2>
+  ${[['--fam-pitch','NOTE'],['--fam-expression','MIDI CC'],['--fam-modulation','LFO'],
+     ['--fam-gate','GATE'],['--fam-clock','CLOCK']]
+    .map(([t,l]) => `<div class="card" style="--c:${c(t)}"><i class="ring"></i><span class="nm">${l}</span></div>`)
+    .join('')}
+  <div class="small">The families hold up better than they look: gate/clock and pitch/expression
+  both stay well clear under CVD (see the table). An earlier pass claimed a three-group collapse —
+  that was measured with the over-generous daltonize matrices and was wrong.</div>`;
+
+for (const [id, cap] of [['', 'normal vision'], ['deut', 'deuteranopia'], ['prot', 'protanopia']]) {
+  const d = document.createElement('div');
+  d.className = 'col';
+  d.innerHTML = `<div class="colcap">${cap}</div>` + scenarios();
+  if (id) d.style.filter = `url(#${id})`;
+  document.body.appendChild(d);
+}
+
+// ---- ΔE76 table, computed in-page from the same live tokens --------------------------------
+const rgb = s => s.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => v / 255);
+const lin = v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+function lab(cs) {
+  const [r, g, b] = rgb(cs).map(lin);
+  const X = r*.4124+g*.3576+b*.1805, Y = r*.2126+g*.7152+b*.0722, Z = r*.0193+g*.1192+b*.9505;
+  const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787*t + 16/116;
+  const fx = f(X/.95047), fy = f(Y), fz = f(Z/1.08883);
+  return [116*fy - 16, 500*(fx - fy), 200*(fy - fz)];
+}
+const de = (a, b) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
+// The SAME Viénot matrices the feColorMatrix filters use, applied in LINEAR RGB exactly as the
+// filters do, so the table describes the picture beside it rather than a second opinion.
+const CVD_M = {
+  d: [[ 0.29275, 0.70725, 0], [ 0.29275, 0.70725, 0], [-0.02234,  0.02234, 1]],
+  p: [[ 0.11238, 0.88761, 0], [ 0.11238, 0.88762, 0], [ 0.00401, -0.00401, 1]],
+};
+const unlin = v => v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055;
+function sim(cs, kind) {
+  const v = rgb(cs).map(lin);                          // linearise first — the model needs light
+  const out = CVD_M[kind]
+    .map(row => row.reduce((s, k, i) => s + k * v[i], 0))
+    .map(x => Math.round(Math.max(0, Math.min(1, unlin(Math.max(0, Math.min(1, x))))) * 255));
+  return `rgb(${out.join(', ')})`;
+}
+const PAIRS = [
+  ['connected vs pending', '--ok', has('--pending') ? '--pending' : '--warn'],
+  ['pending vs gate card', has('--pending') ? '--pending' : '--warn', '--fam-gate'],
+  ['fx chip vs modulation', '--fx', '--fam-modulation'],
+  ['gate vs clock',        '--fam-gate', '--fam-clock'],
+  ['pitch vs expression',  '--fam-pitch', '--fam-expression'],
+];
+const cell = (v, lim) => `<td class="${v >= lim ? 'pass' : 'fail'}">${v.toFixed(1)}</td>`;
+document.body.insertAdjacentHTML('beforeend', `
+  <div style="flex:1 1 100%">
+    <h2>ΔE76 — normal ≥ 20, CVD ≥ 15</h2>
+    <table><tr><th>co-occurring pair</th><th>normal</th><th>deuter</th><th>protan</th></tr>
+    ${PAIRS.map(([n, a, b]) => `<tr><td>${n}</td>
+      ${cell(de(c(a), c(b)), 20)}
+      ${cell(de(sim(c(a),'d'), sim(c(b),'d')), 15)}
+      ${cell(de(sim(c(a),'p'), sim(c(b),'p')), 15)}</tr>`).join('')}
+    </table>
+    <p class="note">Red means the pair fails the threshold on colour alone — check whether it also
+    co-occurs and whether anything other than hue carries it before treating it as a defect.
+    ΔE76 overstates differences in saturated regions; ΔE2000 runs roughly 0.5–0.6× these values,
+    so its equivalent floor is about 10 / 7. Never swap the metric without swapping the thresholds.</p>
+  </div>`);
+</script>
